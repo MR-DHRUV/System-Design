@@ -1,6 +1,7 @@
 ```mermaid
 %%{init: {'theme':'forest'}}%%
 classDiagram
+
     %% Core Domain Components
     class Vehicle {
         <<abstract>>
@@ -17,7 +18,7 @@ classDiagram
     %% Parking Spot Hierarchy (Template Pattern)
     class ParkingSpot {
         <<abstract>>
-        +int id
+        +int row, column, level
         +int price
         +boolean isEmpty
         +Vehicle vehicle
@@ -25,8 +26,6 @@ classDiagram
         +vacate()
     }
     
-    ParkingSpot <|-- TwoWheelerSpot
-    ParkingSpot <|-- FourWheelerSpot
     ParkingSpot o-- Vehicle : contains >
     
     %% Manager Components (Strategy Pattern)
@@ -40,7 +39,7 @@ classDiagram
     ParkingStrategy <|-- NearToExitStrategy
     
     class ParkingLotManager {
-        <<abstract>>
+        +VehicleType handledType
         +List~ParkingSpot~ spots
         +ParkingStrategy strategy
         +findSpot() ParkingSpot
@@ -50,11 +49,11 @@ classDiagram
     
     ParkingLotManager o-- ParkingStrategy : uses >
     ParkingLotManager o-- ParkingSpot : manages >
-    ParkingLotManager <|-- TwoWheelerManager
-    ParkingLotManager <|-- FourWheelerManager
-    
-    %% Factory Pattern for Manager
+
+    %% Registry-based Factory for Vehicle Managers
     class ParkingLotManagerFactory {
+        +Map~VehicleType, ParkingLotManager~ registry
+        +registerManager(VehicleType, ParkingLotManager)
         +getManager(VehicleType) ParkingLotManager
     }
     
@@ -66,13 +65,12 @@ classDiagram
         +DateTime entryTime
         +Vehicle vehicle
         +ParkingSpot spot
-        +generateTicket()
     }
     
     Ticket o-- Vehicle : references >
     Ticket o-- ParkingSpot : references >
     
-    %% Entry/Exit Gates (Facade Pattern)
+    %% Entry Gate (Facade Pattern)
     class EntranceGate {
         +ParkingLotManagerFactory managerFactory
         +processEntry(Vehicle) Ticket
@@ -93,56 +91,44 @@ classDiagram
     PricingStrategy <|-- MinutelyPricingStrategy
     
     class CostCalculator {
-        <<abstract>>
         +PricingStrategy strategy
         +calculateCost(Ticket) double
     }
     
     CostCalculator o-- PricingStrategy : uses >
-    CostCalculator <|-- TwoWheelerCostCalculator
-    CostCalculator <|-- FourWheelerCostCalculator
     
-    %% Factory Pattern for Cost Calculator
-    class CostCalculatorFactory {
-        +getCostCalculator(VehicleType) CostCalculator
-    }
-    
-    CostCalculatorFactory ..> CostCalculator : creates >
-    
-    %% Payment System (Strategy Pattern)
+    %% Payment System (Chain of Responsibility Pattern)
     class PaymentType {
         <<enum>>
         +CREDIT_CARD
         +CASH
         +UPI
     }
-    
+
     class PaymentProcessor {
-        <<interface>>
-        +processPayment(Ticket, double) boolean
+        <<abstract>>
+        +PaymentProcessor next
+        +processPayment(Ticket, double, PaymentType) boolean
+        +canHandle(PaymentType) boolean
+        +createPaymentProcessor(List~PaymentProcessor~ processors) PaymentProcessor
     }
-    
+
     PaymentProcessor <|-- CreditCardPaymentProcessor
     PaymentProcessor <|-- CashPaymentProcessor
     PaymentProcessor <|-- UPIPaymentProcessor
     
-    %% Factory Pattern for Payment Processor
-    class PaymentProcessorFactory {
-        +createProcessor(PaymentType) PaymentProcessor
+    class PaymentChainBuilder {
+        +buildProcessorChain() PaymentProcessor
     }
-    
-    PaymentProcessorFactory ..> PaymentProcessor : creates >
+
     
     class ExitGate {
-        +CostCalculatorFactory calculatorFactory
-        +PaymentProcessorFactory processorFactory
+        +PaymentProcessor paymentProcessor
+        + CostCalculator costCalculator
         +processExit(Ticket, PaymentType) boolean
-        +calculateFee(Ticket) double
-        +processPayment(Ticket, double, PaymentType) boolean
-        +freeSpot(Ticket) boolean
     }
     
-    ExitGate o-- CostCalculatorFactory : uses >
-    ExitGate o-- PaymentProcessorFactory : uses >
+    ExitGate o-- CostCalculator : uses >
+    ExitGate o-- PaymentProcessor : uses >
     ExitGate ..> ParkingSpot : updates >
 ```
