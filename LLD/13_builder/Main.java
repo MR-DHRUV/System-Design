@@ -1,4 +1,3 @@
-
 // Java StringBuilder is based on the Builder Design Pattern
 
 // Product
